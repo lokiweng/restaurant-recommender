@@ -1,0 +1,23 @@
+# Streamlit's own theme tokens.
+#
+# These control the parts of the framework that CSS injection cannot reach --
+# widget internals, the sidebar chrome, focus rings. They deliberately mirror
+# the values in ui/theme.py; if you change a colour, change it in both places.
+#
+# base = "light" pins the app to a light theme rather than following the
+# operating system. The palette is tuned for a light ground, and a half-working
+# dark mode reads worse in a demonstration than a confident light one.
+
+[theme]
+base = "light"
+primaryColor = "#E8564F"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F7F7F7"
+textColor = "#222222"
+font = "sans serif"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
