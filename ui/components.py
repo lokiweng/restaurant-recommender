@@ -191,9 +191,9 @@ def _rating_control(st, row: pd.Series, ratings: dict, on_rate, on_remove,
     """The five-star control that sits under one card.
 
     It lives inside a popover rather than on the card face for a reason worth
-    stating: five buttons per card, twelve cards to a page, is sixty controls
-    competing with the restaurant names for attention. Collapsed, the page
-    still reads as a catalogue; expanded, the action is one click away.
+    stating: a star row on every card, twelve cards to a page, is sixty
+    controls competing with the restaurant names for attention. Collapsed, the
+    page still reads as a catalogue; expanded, the action is one click away.
 
     The current rating is shown in the popover's own label, so a visitor can
     see what they have already rated without opening anything.
@@ -205,25 +205,45 @@ def _rating_control(st, row: pd.Series, ratings: dict, on_rate, on_remove,
     current = (ratings or {}).get(business_id)
     label = f"Rated {current}★ — change" if current else "Rate this"
 
+    # Keyed by business_id so Streamlit can tell the widgets apart -- without a
+    # unique key every card on the page would share one widget.
+    stars_key = f"{key_prefix}_stars_{business_id}"
+
+    # Seed the widget with the existing rating the first time it is built, so
+    # reopening the popover shows what was already chosen rather than a blank
+    # row. Only on first build: overwriting it on every run would fight the
+    # visitor's click, because the click lands in exactly this slot.
+    if current and stars_key not in st.session_state:
+        st.session_state[stars_key] = current - 1
+
     with st.popover(label, use_container_width=True):
         st.caption(str(row.get("name", "")))
 
-        # A row of five, so the scale reads left-to-right the way a star
-        # rating is read everywhere else.
-        for value, cell in zip(range(1, 6), st.columns(5)):
-            # Keyed by business_id *and* value: without both, every button on
-            # the page would be the same widget and Streamlit would raise a
-            # duplicate-key error before rendering anything.
-            if cell.button(f"{value}★", key=f"{key_prefix}_set_{business_id}_{value}",
-                           use_container_width=True,
-                           type="primary" if current == value else "secondary"):
-                on_rate(business_id, value)
-                st.rerun()
+        # st.feedback rather than five st.buttons in five st.columns.
+        #
+        # The buttons were the obvious construction and the wrong one. This
+        # popover sits inside a one-third-width card column, so splitting it
+        # five ways left each button about 40px wide -- narrower than the
+        # label "1★", which then wrapped onto two lines. st.feedback draws one
+        # compact row of star glyphs instead of five bordered boxes, so it
+        # fits the width that is actually available.
+        #
+        # It is 0-indexed: the first star returns 0, so everything crossing
+        # into our 1-5 scale is offset by one.
+        selected = st.feedback("stars", key=stars_key)
+
+        if selected is not None and (selected + 1) != current:
+            on_rate(business_id, selected + 1)
+            st.rerun()
 
         if current and on_remove is not None:
             if st.button("Remove this rating", key=f"{key_prefix}_del_{business_id}",
                          use_container_width=True):
                 on_remove(business_id)
+                # Drop the widget's own state too. Without this the stars stay
+                # lit after the rating is gone, and the next rerun would read
+                # them back and silently re-add it.
+                st.session_state.pop(stars_key, None)
                 st.rerun()
 
 
