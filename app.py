@@ -37,9 +37,16 @@ st.set_page_config(
     page_title="Cleveland Eats",
     page_icon="🍽️",
     layout="wide",
-    # "auto" lets Streamlit collapse the sidebar itself on narrow screens.
-    # Forcing "expanded" keeps it open on a phone, where it covers the page.
-    initial_sidebar_state="auto",
+    # "expanded" rather than "auto", to match the stylesheet.
+    #
+    # ui/theme.py removes the collapse control above 640px: the sidebar is this
+    # app's navigation, and the arrow that hides it was the most reliable way
+    # for a visitor to get stuck with no way back. With no control to reopen it
+    # on a desktop, the sidebar must never start closed.
+    #
+    # Below 640px the control is left in place -- there the sidebar covers the
+    # whole page -- and Streamlit still collapses it on its own at that width.
+    initial_sidebar_state="expanded",
 )
 
 apply_theme(st)
@@ -72,7 +79,7 @@ pages = {
         ),
         st.Page(
             "pages/3_Recommendations.py",
-            title="Your picks",
+            title="Recommended for you",
             icon=":material/recommend:",
         ),
     ],
