@@ -131,28 +131,36 @@ def _css() -> str:
     /* The header stays, at a reduced height, and only its background is
        removed. It is not set to height: 0.
 
-       The button that reopens a collapsed sidebar is rendered inside this
-       element. With the header flattened, that button has nowhere to sit and
-       is clipped, so clicking the collapse arrow once removes the navigation
-       for the rest of the session -- the page has to be reloaded to get it
-       back. Keeping ~2rem costs a little vertical space and keeps the sidebar
-       recoverable. */
+       On a narrow screen the sidebar still collapses (see the rule below), and
+       the button that brings it back is rendered inside this header. With the
+       header flattened that button has nowhere to sit and is clipped, so the
+       navigation cannot be recovered without reloading the page. */
     [data-testid="stHeader"] {{
         background: transparent;
         height: {HEADER_HEIGHT};
     }}
 
-    /* Belt and braces for the control itself. Streamlit has renamed this
-       element more than once -- collapsedControl before 1.38,
-       stSidebarCollapseButton and stExpandSidebarButton after -- so all three
-       are listed. Naming an id that does not exist in the running version is
-       harmless; missing the one that does is not. */
-    [data-testid="collapsedControl"],
-    [data-testid="stSidebarCollapseButton"],
-    [data-testid="stExpandSidebarButton"] {{
-        display: flex !important;
-        visibility: visible !important;
-        z-index: 1000;
+    /* Remove the collapse control on anything wider than a phone.
+
+       The sidebar is this app's navigation, not a panel of optional settings,
+       so there is nothing to gain by hiding it on a desktop -- and the arrow
+       that hides it has been the single most reliable way for a visitor to
+       get stuck. Taking the control away is a smaller loss than the state it
+       leads to.
+
+       Below 640px the rule does not apply, deliberately: there the sidebar
+       covers the whole page, so being able to close it is the difference
+       between a usable app and an unusable one. Streamlit renames this element
+       between versions -- collapsedControl before 1.38, stSidebarCollapseButton
+       and stExpandSidebarButton after -- so all three are listed. Naming an id
+       that does not exist in the running version is harmless; missing the one
+       that does is not. */
+    @media (min-width: 640px) {{
+        [data-testid="collapsedControl"],
+        [data-testid="stSidebarCollapseButton"],
+        [data-testid="stExpandSidebarButton"] {{
+            display: none !important;
+        }}
     }}
 
     /* ---------------------------------------------------------------
@@ -222,6 +230,12 @@ def _css() -> str:
         font-size: 15px;
         font-weight: 600;
         font-family: {FONT_STACK};
+        /* Never break a label across two lines. Streamlit wraps button text at
+           any character when the container is narrow, which turned "1★" into a
+           digit stacked above a star inside the rating popover. A button label
+           is a name, not a paragraph: if it does not fit, the container is
+           wrong, and wrapping only hides that. */
+        white-space: nowrap;
         transition: background 140ms ease, transform 140ms ease;
     }}
     .stButton > button:hover {{
@@ -269,6 +283,15 @@ def _css() -> str:
         background: {c['ground']};
         color: {c['text']};
         border-color: {c['text']};
+    }}
+
+    /* Buttons *inside* a popover sit five to a row in a panel that is itself
+       only a third of the page wide, so the 20px side padding above leaves
+       almost no room for the label. nowrap alone would just overflow; the
+       padding has to come down with it. */
+    [data-testid="stPopoverBody"] .stButton > button {{
+        padding: 8px 4px;
+        min-width: 0;
     }}
 
     /* ---------------------------------------------------------------
