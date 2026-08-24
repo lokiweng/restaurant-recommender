@@ -27,6 +27,16 @@ The app commits to a light theme rather than following the operating system.
 That is a deliberate choice, not an omission: the palette below is tuned for
 a light ground, and a half-working dark mode looks worse in a demo than a
 confident light one.
+
+A NOTE ON HIDING FRAMEWORK CHROME
+---------------------------------
+Section 1 below removes Streamlit's toolbar, menu and footer. That is safe.
+Removing the *header* is not, and the difference is worth understanding
+before anyone edits it: the control that reopens a collapsed sidebar lives
+inside the header, so flattening the header to zero height takes the sidebar
+with it -- one click on the collapse arrow and the navigation is gone until
+the page is reloaded. The header is therefore made invisible rather than
+absent. See the comment on stHeader for the specific values.
 """
 
 # ---------------------------------------------------------------------------
@@ -51,6 +61,15 @@ COLORS = {
 # A 4px base scale. Every gap in the app is one of these numbers; nothing is
 # improvised. This is what makes spacing look deliberate rather than drifting.
 SPACE = {"xs": 4, "sm": 8, "md": 12, "base": 16, "lg": 24, "xl": 32, "xxl": 48}
+
+# Height reserved for Streamlit's header bar.
+#
+# Not a free choice. The header is visually empty here -- its toolbar and menu
+# are hidden in section 1 -- so the temptation is to set this to 0 and reclaim
+# the space. Doing that clips the button that reopens a collapsed sidebar,
+# which is rendered inside the header, and the sidebar then cannot be brought
+# back. 2rem is the smallest value that still leaves that button clickable.
+HEADER_HEIGHT = "2rem"
 
 # Chart colours.
 #
@@ -108,9 +127,32 @@ def _css() -> str:
     #MainMenu, footer, header [data-testid="stToolbar"], [data-testid="stDecoration"] {{
         display: none !important;
     }}
+
+    /* The header stays, at a reduced height, and only its background is
+       removed. It is not set to height: 0.
+
+       The button that reopens a collapsed sidebar is rendered inside this
+       element. With the header flattened, that button has nowhere to sit and
+       is clipped, so clicking the collapse arrow once removes the navigation
+       for the rest of the session -- the page has to be reloaded to get it
+       back. Keeping ~2rem costs a little vertical space and keeps the sidebar
+       recoverable. */
     [data-testid="stHeader"] {{
         background: transparent;
-        height: 0;
+        height: {HEADER_HEIGHT};
+    }}
+
+    /* Belt and braces for the control itself. Streamlit has renamed this
+       element more than once -- collapsedControl before 1.38,
+       stSidebarCollapseButton and stExpandSidebarButton after -- so all three
+       are listed. Naming an id that does not exist in the running version is
+       harmless; missing the one that does is not. */
+    [data-testid="collapsedControl"],
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="stExpandSidebarButton"] {{
+        display: flex !important;
+        visibility: visible !important;
+        z-index: 1000;
     }}
 
     /* ---------------------------------------------------------------
@@ -122,9 +164,12 @@ def _css() -> str:
         color: {c['text']};
     }}
 
+    /* padding-top is 'md' rather than 'xl' because the header above now
+       contributes its own 2rem. Together they come to roughly the space the
+       old xl padding gave on its own. */
     .block-container, [data-testid="stMainBlockContainer"] {{
         max-width: {MAX_CONTENT_WIDTH}px;
-        padding-top: {s['xl']}px;
+        padding-top: {s['md']}px;
         padding-bottom: {s['xxl']}px;
     }}
 
@@ -211,11 +256,34 @@ def _css() -> str:
         box-shadow: none !important;
     }}
 
+    /* The popover that carries the star rating on a browse card. Its trigger
+       is a button, so without this it inherits the solid accent fill above and
+       every card in the grid shouts. Quiet by default, like a secondary. */
+    [data-testid="stPopover"] > button {{
+        background: {c['ground']};
+        color: {c['text']};
+        border: 1px solid {c['border']};
+        font-weight: 500;
+    }}
+    [data-testid="stPopover"] > button:hover {{
+        background: {c['ground']};
+        color: {c['text']};
+        border-color: {c['text']};
+    }}
+
     /* ---------------------------------------------------------------
        5. The restaurant card grid.
-       Rendered as real CSS grid rather than Streamlit columns, because
-       columns cannot reflow responsively -- st.columns(3) stays three
-       columns on a phone. This collapses 3 -> 2 -> 1 properly.
+
+       Rendered as real CSS grid rather than Streamlit columns because it
+       reflows at every width: auto-fill with a 260px minimum collapses
+       3 -> 2 -> 1 as the viewport narrows. st.columns only reflows once --
+       Streamlit stacks columns vertically below 640px and leaves them side
+       by side above it -- so a three-column row is still three columns at
+       700px, where 260px cards would already have dropped to two.
+
+       The Browse screen uses st.columns anyway, and accepts that, because
+       Streamlit widgets cannot be placed inside injected HTML and a card
+       there has to carry a working rating control.
        --------------------------------------------------------------- */
     .rr-grid {{
         display: grid;
