@@ -1,7 +1,8 @@
 """
 pages/1_Browse.py
 
-The full catalogue, with filters.
+The full catalogue, with filters -- and, now, the ability to rate anything in
+it without leaving the page.
 
 DESIGN NOTE: WHY THE FILTERS ARE NOT IN THE SIDEBAR
 ---------------------------------------------------
@@ -13,21 +14,66 @@ collapses, hiding the filters entirely.
 
 Putting them in a row above the results keeps the controls and the thing they
 control on the same screen, which is how every real restaurant site does it.
+
+DESIGN NOTE: WHY THE CARDS ARE RATEABLE HERE
+--------------------------------------------
+Until now this screen was a dead end. A visitor could search 817 restaurants,
+recognise one they had actually been to, and then had no way to say so -- the
+only rating control lived on another page behind a dropdown, so acting on a
+recognition meant retyping the name they were already looking at.
+
+That is backwards. Recognition is the scarce thing in this app: a visitor can
+only rate places they have been, and browsing is how they find them. The
+rating control belongs where the recognition happens.
+
+It also removes the app's worst piece of duplicated work. Search-by-name
+exists twice -- once as this page's filter, once as the dropdown on the Rate
+screen -- and the two do the same job with different interfaces. This page now
+does the job properly, and the Rate screen keeps its dropdown for the visitor
+who arrives already knowing the name they want.
 """
 
 import pandas as pd
 import streamlit as st
 
-from ui.components import divider, eyebrow, lede, render_card_grid
-from ui.state import boot
+from ui.components import (divider, eyebrow, lede, render_rateable_grid,
+                           RATEABLE_COLUMNS)
+from ui.state import (RATINGS_FOR_GOOD_RESULTS, boot, my_ratings,
+                      remove_rating, set_rating)
 
-PAGE_SIZE = 12
+# Four rows of three. A page that ends mid-row looks broken, so the page size
+# is a multiple of the column count rather than a round number.
+PAGE_SIZE = RATEABLE_COLUMNS * 4
 
 data, models, _ = boot()
+ratings = my_ratings()
 
 eyebrow(st, "The whole catalogue")
 st.markdown("# Browse restaurants")
-lede(st, f"All {data.n_businesses:,} restaurants in the dataset. Filter to narrow them down.")
+lede(st, f"All {data.n_businesses:,} restaurants in the dataset. Rate any of them here — "
+         "the recommendations update from whatever you rate.")
+
+# ---------------------------------------------------------------------------
+# Progress.
+#
+# Repeated from the Rate screen on purpose. Someone who starts on this page
+# and never visits that one still needs to know how many ratings make the
+# recommendations worth looking at.
+# ---------------------------------------------------------------------------
+if ratings:
+    rated_count = len(ratings)
+    remaining = max(0, RATINGS_FOR_GOOD_RESULTS - rated_count)
+
+    progress_left, progress_right = st.columns([3, 1])
+    with progress_left:
+        st.caption(
+            f"**{rated_count} rated.** "
+            + (f"{remaining} more for good results."
+               if remaining else "That's enough for personalised picks.")
+        )
+    with progress_right:
+        if st.button("See your picks →", type="primary", use_container_width=True):
+            st.switch_page("pages/3_Recommendations.py")
 
 # ---------------------------------------------------------------------------
 # Filters
@@ -102,7 +148,18 @@ with header_right:
     ) if total_pages > 1 else 1
 
 start = (int(page) - 1) * PAGE_SIZE
-render_card_grid(st, results.iloc[start:start + PAGE_SIZE])
+page_of_results = results.iloc[start:start + PAGE_SIZE]
+
+render_rateable_grid(
+    st,
+    page_of_results,
+    ratings=ratings,
+    on_rate=set_rating,
+    on_remove=remove_rating,
+    # Scoped to this page so the widget keys cannot collide with a rateable
+    # grid on any other screen.
+    key_prefix="browse",
+)
 
 if total_pages > 1:
     st.caption(f"Page {int(page)} of {total_pages}")
