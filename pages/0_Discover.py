@@ -19,6 +19,7 @@ presenting a popularity list as if it were a recommendation.
 
 import streamlit as st
 
+from core.explain import add_reasons
 from ui.components import divider, eyebrow, lede, render_card_grid, stat_row
 from ui.state import RATINGS_FOR_GOOD_RESULTS, boot, my_ratings
 
@@ -101,8 +102,13 @@ else:
     st.markdown("## A few you might like")
     lede(st, "From the hybrid model. The full list, and how each approach ranked it, is on the recommendations screen.")
     picks = models["hybrid"].recommend_from_ratings(my_ratings(), top_n=8)
+    # Explanations only exist once there is something to explain them with.
+    # Before any rating, the block above shows the popularity baseline, which
+    # is the same list for everybody and has nothing personal to point at.
+    picks = add_reasons(picks, my_ratings(), data.businesses)
 
 render_card_grid(st, picks, score_column="score", score_label="score",
+                 reason_column="reason" if rated_count else None,
                  empty_message="No restaurants to show.")
 
 divider(st)
