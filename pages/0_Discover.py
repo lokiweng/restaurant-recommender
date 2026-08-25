@@ -53,7 +53,7 @@ st.write("")
 # ---------------------------------------------------------------------------
 steps = [
     ("Step 1", "Rate a few restaurants", "Tell us about places you've been."),
-    ("Step 2", "See your picks", "Recommendations built from your ratings."),
+    ("Step 2", "See your recommendations", "Built from what you rated."),
     ("Step 3", "Tell us how we did", "A short questionnaire on the results."),
 ]
 current_step = 1 if rated_count == 0 else 2
@@ -72,7 +72,7 @@ if rated_count == 0:
 else:
     left, right = st.columns([1, 3])
     with left:
-        if st.button("See your picks →", type="primary"):
+        if st.button("See your recommendations →", type="primary"):
             st.switch_page("pages/3_Recommendations.py")
     with right:
         remaining = max(0, RATINGS_FOR_GOOD_RESULTS - rated_count)
@@ -99,7 +99,7 @@ if rated_count == 0:
 else:
     eyebrow(st, "Based on what you've rated")
     st.markdown("## A few you might like")
-    lede(st, "From the hybrid model. The full list, and how each approach ranked it, is on your picks screen.")
+    lede(st, "From the hybrid model. The full list, and how each approach ranked it, is on the recommendations screen.")
     picks = models["hybrid"].recommend_from_ratings(my_ratings(), top_n=8)
 
 render_card_grid(st, picks, score_column="score", score_label="score",
