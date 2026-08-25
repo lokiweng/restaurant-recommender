@@ -354,6 +354,24 @@ def _css() -> str:
         white-space: nowrap;
     }}
 
+    /* The explanation line -- why this restaurant was recommended.
+       Sits between the cuisine pills and the rating row, indented behind a
+       rule so it reads as commentary on the card rather than as another
+       attribute of the restaurant. Clamped to three lines: an explanation
+       that names a long restaurant name and three tags must not be allowed
+       to push the cards in a row out of alignment. */
+    .rr-reason {{
+        font-size: 13px;
+        line-height: 1.45;
+        color: {c['muted']};
+        border-left: 2px solid {c['accent_sf']};
+        padding-left: {s['sm']}px;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }}
+
     .rr-meta {{
         display: flex;
         align-items: center;
