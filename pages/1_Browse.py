@@ -72,7 +72,7 @@ if ratings:
                if remaining else "That's enough for personalised picks.")
         )
     with progress_right:
-        if st.button("See your picks →", type="primary", use_container_width=True):
+        if st.button("See your recommendations →", type="primary", use_container_width=True):
             st.switch_page("pages/3_Recommendations.py")
 
 # ---------------------------------------------------------------------------
