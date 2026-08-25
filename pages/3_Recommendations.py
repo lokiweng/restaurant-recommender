@@ -24,11 +24,15 @@ import streamlit as st
 from ui.components import divider, eyebrow, lede, render_card_grid
 from ui.state import (RATINGS_FOR_GOOD_RESULTS, boot, my_ratings)
 
+# Height of each column in the side-by-side model comparison, in pixels.
+# Enough for a heading, a caption and five ranked entries.
+COMPARISON_HEIGHT = 340
+
 data, models, _ = boot()
 ratings = my_ratings()
 
 eyebrow(st, "Step 2 of 3")
-st.markdown("# Your picks")
+st.markdown("# Recommended for you")
 
 # ---------------------------------------------------------------------------
 # Cold start.
@@ -119,8 +123,19 @@ with st.expander("How did each approach rank these?", expanded=False):
         ("Popularity", models["popularity"], "Ignores you completely — the baseline."),
     ]
 
+    # A fixed height on every column rather than letting each size itself.
+    #
+    # The four models do not always return the same number of rows -- a model
+    # with no signal from these ratings returns none at all -- so left to
+    # themselves the columns end at four different points and the section
+    # reads as broken rather than as a comparison. Pinning the height makes
+    # the four lists start and finish on the same line, which is the whole
+    # point of putting them side by side.
+    #
+    # 340px holds a heading, a caption and five entries without scrolling; a
+    # shorter list simply leaves white space, which is the correct signal.
     for column, (label, model, explanation) in zip(st.columns(4), comparison):
-        with column:
+        with column.container(height=COMPARISON_HEIGHT, border=False):
             st.markdown(f"**{label}**")
             st.caption(explanation)
             results = model.recommend_from_ratings(ratings, top_n=5)
