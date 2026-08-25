@@ -115,7 +115,7 @@ def price_pill(price_range) -> str:
 
 
 def restaurant_card_html(row: pd.Series, score: float | None = None,
-                         score_label: str = "match") -> str:
+                         score_label: str = "match", reason: str | None = None) -> str:
     """One restaurant, as a card.
 
     row must contain: name, primary_category, avg_rating, review_count.
@@ -147,10 +147,19 @@ def restaurant_card_html(row: pd.Series, score: float | None = None,
     if score is not None and not pd.isna(score):
         score_html = f'<span class="rr-score">{_escape(score_label)} {float(score):.2f}</span>'
 
+    # The explanation, when there is one. Omitted entirely rather than shown
+    # empty: a card with a blank reason line looks like the text failed to
+    # load, and on the Browse screen -- where no model has an opinion -- there
+    # is genuinely nothing to say.
+    reason_html = ""
+    if reason:
+        reason_html = f'<div class="rr-reason">{_escape(reason)}</div>'
+
     return _compact(f"""
     <div class="rr-card">
         <div class="rr-card-name">{name}</div>
         <div class="rr-pills">{pills}</div>
+        {reason_html}
         <div class="rr-meta">
             <span class="rr-stars">{stars(rating_value)}</span>
             <span>{rating_text}</span>
@@ -163,7 +172,8 @@ def restaurant_card_html(row: pd.Series, score: float | None = None,
 
 
 def render_card_grid(st, frame: pd.DataFrame, score_column: str | None = None,
-                     score_label: str = "match", empty_message: str = "Nothing to show yet.") -> None:
+                     score_label: str = "match", empty_message: str = "Nothing to show yet.",
+                     reason_column: str | None = None) -> None:
     """Render a DataFrame of restaurants as a responsive grid of cards.
 
     Display only -- nothing here can be clicked. Use render_rateable_grid()
@@ -181,7 +191,8 @@ def render_card_grid(st, frame: pd.DataFrame, score_column: str | None = None,
     cards = []
     for _, row in frame.iterrows():
         score = row.get(score_column) if score_column and score_column in frame.columns else None
-        cards.append(restaurant_card_html(row, score=score, score_label=score_label))
+        reason = row.get(reason_column) if reason_column and reason_column in frame.columns else None
+        cards.append(restaurant_card_html(row, score=score, score_label=score_label, reason=reason))
 
     st.markdown(f'<div class="rr-grid">{"".join(cards)}</div>', unsafe_allow_html=True)
 
@@ -252,6 +263,7 @@ def render_rateable_grid(st, frame: pd.DataFrame, *, ratings: dict | None = None
                          columns: int = RATEABLE_COLUMNS,
                          score_column: str | None = None, score_label: str = "match",
                          empty_message: str = "Nothing to show yet.",
+                         reason_column: str | None = None,
                          key_prefix: str = "card") -> None:
     """The card grid, with a working rating control under every card.
 
@@ -277,8 +289,9 @@ def render_rateable_grid(st, frame: pd.DataFrame, *, ratings: dict | None = None
         for cell, (_, row) in zip(cells, chunk):
             with cell:
                 score = row.get(score_column) if score_column and score_column in frame.columns else None
+                reason = row.get(reason_column) if reason_column and reason_column in frame.columns else None
                 st.markdown(
-                    restaurant_card_html(row, score=score, score_label=score_label),
+                    restaurant_card_html(row, score=score, score_label=score_label, reason=reason),
                     unsafe_allow_html=True,
                 )
                 _rating_control(st, row, ratings, on_rate, on_remove, key_prefix)
