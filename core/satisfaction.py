@@ -58,7 +58,20 @@ QUESTIONS = {
     "intent": "How likely would you be to use this to choose where to eat?",
 }
 
-SCALE_LABELS = {1: "1 — not at all", 2: "2", 3: "3 — somewhat", 4: "4", 5: "5 — very much"}
+# Every point on the scale carries a word, not just the anchors.
+#
+# Labelling only 1, 3 and 5 is a common Likert convention, but in a radio row
+# it renders as two bare numbers sitting between three described ones, and a
+# respondent reads that as an unfinished form rather than as a deliberate
+# scale. Naming all five also removes the guesswork about what 2 and 4 mean,
+# which is the difference between five usable points and three.
+SCALE_LABELS = {
+    1: "1 — not at all",
+    2: "2 — not really",
+    3: "3 — somewhat",
+    4: "4 — mostly",
+    5: "5 — very much",
+}
 
 SCALE_MIN, SCALE_MAX = 1, 5
 MAX_COMMENT_LENGTH = 500
