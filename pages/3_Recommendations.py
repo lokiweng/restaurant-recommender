@@ -21,6 +21,7 @@ their dinner, and expanded by anyone assessing the project.
 
 import streamlit as st
 
+from core.explain import add_reasons
 from ui.components import divider, eyebrow, lede, render_card_grid
 from ui.state import (RATINGS_FOR_GOOD_RESULTS, boot, my_ratings)
 
@@ -83,8 +84,18 @@ if len(ratings) < RATINGS_FOR_GOOD_RESULTS:
 hybrid = models["hybrid"]
 picks = hybrid.recommend_from_ratings(ratings, top_n=9)
 
+# Attach an explanation to each pick before rendering.
+#
+# This runs after the model has ranked and changes nothing about the order --
+# it reconstructs, from the visitor's own ratings, what this restaurant has in
+# common with something they already liked. A match score of 0.87 is the
+# model's confidence on a scale only the code knows; "Shares Indian, Curry
+# with Cafe Tandoor, which you rated 5★" is a claim the reader can check.
+picks = add_reasons(picks, ratings, data.businesses)
+
 render_card_grid(
     st, picks, score_column="score", score_label="match",
+    reason_column="reason",
     empty_message="No recommendations could be produced from these ratings.",
 )
 
@@ -93,7 +104,7 @@ with action_left:
     if st.button("Rate more →", type="secondary"):
         st.switch_page("pages/2_Rate.py")
 with action_right:
-    st.caption("The match score is the blended model output — higher means a closer fit to your ratings.")
+    st.caption("The match score is the blended model output — higher means a closer fit to your ratings. The line under each name says what it has in common with something you rated highly.")
 
 divider(st)
 
