@@ -49,7 +49,7 @@ elif len(ratings) < RATINGS_FOR_GOOD_RESULTS:
     remaining = RATINGS_FOR_GOOD_RESULTS - len(ratings)
     st.caption(f"{len(ratings)} rated — {remaining} more for good results.")
 else:
-    st.caption(f"{len(ratings)} rated. That's plenty — more will still help.")
+    st.caption(f"{len(ratings)} rated — enough for personalised picks. More will sharpen them.")
 
 divider(st)
 
@@ -135,7 +135,7 @@ if ratings:
 
     action_left, action_right = st.columns([1, 3])
     with action_left:
-        if st.button("See your picks →", type="primary"):
+        if st.button("See your recommendations →", type="primary"):
             st.switch_page("pages/3_Recommendations.py")
     with action_right:
         if st.button("Clear all ratings", type="secondary"):
