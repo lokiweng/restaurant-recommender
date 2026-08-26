@@ -31,7 +31,7 @@ import streamlit as st
 from core.collaborative import CollaborativeRecommender
 from core.content_based import ContentBasedRecommender
 from core.data import Dataset, DatasetError, load_dataset
-from core.hybrid import HybridRecommender
+from core.hybrid import DEFAULT_ALPHA, HybridRecommender
 from core.popularity import PopularityRecommender
 from core.validation import DataValidationError, validate
 
@@ -69,7 +69,7 @@ def get_models(_data: Dataset) -> dict:
     """
     content = ContentBasedRecommender().fit(_data)
     collaborative = CollaborativeRecommender().fit(_data)
-    hybrid = HybridRecommender(alpha=0.5, content=content, collaborative=collaborative).fit(_data)
+    hybrid = HybridRecommender(alpha=DEFAULT_ALPHA, content=content, collaborative=collaborative).fit(_data)
     popularity = PopularityRecommender().fit(_data)
 
     return {
