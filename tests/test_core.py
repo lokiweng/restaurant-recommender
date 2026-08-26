@@ -85,6 +85,13 @@ def tiny() -> Dataset:
         {"review_id": "r9", "user_id": "u3", "business_id": "b1", "rating": 2},
         {"review_id": "r10", "user_id": "u4", "business_id": "b5", "rating": 4},
         {"review_id": "r11", "user_id": "u4", "business_id": "b2", "rating": 4},
+        # b6 exists to test Bayesian shrinkage: a perfect average from almost
+        # no evidence. These two ratings are what make it so -- the avg_rating
+        # and review_count columns above are display metadata and are
+        # deliberately NOT read by any model, because under a train/test split
+        # they carry the held-out ratings the model is about to be graded on.
+        {"review_id": "r12", "user_id": "u1", "business_id": "b6", "rating": 5},
+        {"review_id": "r13", "user_id": "u2", "business_id": "b6", "rating": 5},
     ])
     return Dataset(businesses=businesses, users=users, reviews=reviews)
 
@@ -213,10 +220,44 @@ def test_popularity_ignores_who_is_asking(tiny):
 
 
 def test_popularity_discounts_a_restaurant_with_almost_no_reviews(tiny):
-    """b6 has a perfect 5.0 from 2 reviews; b1 has 4.5 from 100. The weighted
-    rating must prefer the one with evidence behind it."""
+    """b4 and b6 both average a perfect 5.0 — b4 from one rating, b6 from two.
+
+    Holding the average fixed and varying only the evidence behind it isolates
+    the Bayesian term exactly: with nothing else to separate them, the one
+    supported by more ratings must score higher. A model ranking on raw
+    averages would tie them.
+    """
     model = PopularityRecommender().fit(tiny)
-    assert model.predict("u1", "b1") > model.predict("u1", "b6")
+    assert model.predict("u1", "b6") > model.predict("u1", "b4")
+
+
+def test_popularity_ignores_the_precomputed_catalogue_columns(tiny):
+    """The regression test for the test-set leak.
+
+    businesses.csv carries avg_rating and review_count computed from every
+    review in the dataset. If the baseline reads them, then under a train/test
+    split it scores restaurants using statistics that already reflect the
+    held-out ratings it is about to be measured on — and since the headline
+    finding of this project is that this baseline beats all three personalised
+    models, that leak sits directly beneath the central claim.
+
+    Rewriting those columns to nonsense must therefore change nothing. If this
+    test fails, the leak is back.
+    """
+    import dataclasses
+
+    tampered = tiny.businesses.copy()
+    tampered["avg_rating"] = 1.0
+    tampered["review_count"] = 0
+    poisoned = dataclasses.replace(tiny, businesses=tampered)
+
+    honest = PopularityRecommender().fit(tiny)
+    tampered_model = PopularityRecommender().fit(poisoned)
+
+    for business_id in tiny.businesses["business_id"]:
+        assert honest.predict("u1", business_id) == pytest.approx(
+            tampered_model.predict("u1", business_id)
+        ), f"{business_id}: the baseline is reading the catalogue columns again"
 
 
 def test_hybrid_alpha_controls_the_blend(tiny):
