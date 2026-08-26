@@ -1,8 +1,14 @@
 # Streamlit's own theme tokens.
 #
 # These control the parts of the framework that CSS injection cannot reach --
-# widget internals, the sidebar chrome, focus rings. They deliberately mirror
-# the values in ui/theme.py; if you change a colour, change it in both places.
+# widget internals, the sidebar chrome, focus rings. They mirror the values in
+# ui/theme.py, and they have to: Streamlit parses this file before any of the
+# application's code runs, so it cannot import the palette.
+#
+# The duplication is guarded rather than merely noted. tests/test_theme.py
+# asserts every colour below equals its token in ui/theme.py, so changing one
+# file and forgetting the other fails the suite by name instead of producing a
+# theme that is subtly wrong until someone notices mid-demonstration.
 #
 # base = "light" pins the app to a light theme rather than following the
 # operating system. The palette is tuned for a light ground, and a half-working
