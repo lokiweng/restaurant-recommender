@@ -41,7 +41,15 @@ import pandas as pd
 from ui.theme import COLORS, SPACE
 
 # Rating out of 5, drawn as filled/half/empty stars.
-FULL_STAR, HALF_STAR, EMPTY_STAR = "★", "½", "☆"
+#
+# The half star is a full star glyph with its right-hand side clipped in CSS
+# (see .rr-half in theme.py), not the fraction character "½". A fraction sits
+# on a different baseline and at a different width to "★", so a row reading
+# ★★★★½ visibly stumbled at the last character and looked like a rendering
+# fault rather than a rating. Every caller of stars() already writes into an
+# HTML context, so returning markup here costs nothing.
+FULL_STAR, EMPTY_STAR = "★", "☆"
+HALF_STAR = '<span class="rr-half">★</span>' 
 
 # How many cards sit side by side in the rateable grid. Three keeps each card
 # above the ~260px the display grid treats as a card's minimum comfortable

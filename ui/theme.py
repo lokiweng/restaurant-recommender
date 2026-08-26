@@ -382,6 +382,18 @@ def _css() -> str:
         padding-top: {s['sm']}px;
     }}
     .rr-stars {{ color: {c['rating']}; font-weight: 600; letter-spacing: -0.5px; }}
+
+    /* Half a star, drawn by clipping a whole one.
+       A linear-gradient background clipped to the glyph fills the left half
+       with the rating colour and the right half with the border colour, so the
+       character keeps the exact width, baseline and shape of the full stars
+       either side of it. */
+    .rr-half {{
+        background: linear-gradient(90deg, {c['rating']} 50%, {c['border']} 50%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }}
     .rr-score {{
         font-size: 12px;
         color: {c['accent']};
