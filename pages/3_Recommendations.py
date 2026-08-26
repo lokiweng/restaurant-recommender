@@ -22,6 +22,7 @@ their dinner, and expanded by anyone assessing the project.
 import streamlit as st
 
 from core.explain import add_reasons
+from core.hybrid import HybridRecommender
 from ui.components import divider, eyebrow, lede, render_card_grid
 from ui.state import (RATINGS_FOR_GOOD_RESULTS, boot, my_ratings)
 
@@ -125,12 +126,29 @@ with st.expander("How did each approach rank these?", expanded=False):
         "Hybrid blend (α) — 0 is pure content-based, 1 is pure collaborative",
         min_value=0.0, max_value=1.0, value=hybrid.alpha, step=0.1,
     )
-    hybrid.alpha = alpha
+
+    # A separate instance for the preview, rather than `hybrid.alpha = alpha`.
+    #
+    # boot() caches the fitted models with @st.cache_resource, which hands the
+    # *same* object to every page and every session. Assigning to .alpha on it
+    # therefore does not adjust a preview -- it permanently rewrites the model
+    # the whole application uses, for every visitor of the deployed app, and
+    # leaves the picks above this expander disagreeing with the ones inside it
+    # until the next rerun.
+    #
+    # Constructing a second HybridRecommender is cheap because it is handed the
+    # already-fitted sub-models: fit() skips anything already fitted, so this
+    # costs a DataFrame reference, not a refit.
+    preview = HybridRecommender(
+        alpha=alpha,
+        content=models["content"],
+        collaborative=models["collaborative"],
+    ).fit(data)
 
     comparison = [
         ("Content-based", models["content"], "Matches cuisine and price to what you rated highly."),
         ("Collaborative", models["collaborative"], "Matches diners whose ratings look like yours."),
-        (f"Hybrid (α = {alpha:g})", hybrid, "A weighted blend of the two."),
+        (f"Hybrid (α = {alpha:g})", preview, "A weighted blend of the two."),
         ("Popularity", models["popularity"], "Ignores you completely — the baseline."),
     ]
 

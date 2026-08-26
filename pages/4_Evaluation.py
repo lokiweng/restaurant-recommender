@@ -29,7 +29,7 @@ import streamlit as st
 from core.collaborative import CollaborativeRecommender
 from core.content_based import ContentBasedRecommender
 from core.evaluation import DEFAULT_K, evaluate_all
-from core.hybrid import HybridRecommender
+from core.hybrid import DEFAULT_ALPHA, HybridRecommender
 from core.popularity import PopularityRecommender
 from core.satisfaction import (QUESTIONS, SCALE_LABELS, SatisfactionError,
                                aggregate, as_frame, load_responses,
@@ -140,7 +140,7 @@ def run_evaluation(_data, k: int) -> pd.DataFrame:
         PopularityRecommender(),
         ContentBasedRecommender(),
         CollaborativeRecommender(),
-        HybridRecommender(alpha=0.5),
+        HybridRecommender(alpha=DEFAULT_ALPHA),
     ]
     return evaluate_all(contenders, _data, k=k)
 
@@ -164,6 +164,8 @@ else:
     best_rmse = results.loc[results["rmse"].idxmin()]
     best_f1 = results.loc[results["f1_at_k"].idxmax()]
     best_coverage = results.loc[results["coverage"].idxmax()]
+    best_hit = results.loc[results["hit_rate_at_k"].idxmax()]
+    best_personal = results.loc[results["personalisation"].idxmax()]
 
     # The value stays short and the model name moves into the label. Putting
     # both in the value ("1.074 · Popularity baseline") wraps the headline
@@ -174,8 +176,8 @@ else:
         [
             (f"Lowest RMSE — {best_rmse['model']}", f"{best_rmse['rmse']:.3f}"),
             (f"Best F1@{DEFAULT_K} — {best_f1['model']}", f"{best_f1['f1_at_k']:.3f}"),
-            (f"Widest coverage — {best_coverage['model']}", f"{best_coverage['coverage']:.0%}"),
-            ("Users evaluated", f"{int(results['n_users_evaluated'].max()):,}"),
+            (f"Best hit rate — {best_hit['model']}", f"{best_hit['hit_rate_at_k']:.1%}"),
+            (f"Most personalised — {best_personal['model']}", f"{best_personal['personalisation']:.2f}"),
         ],
     )
 
@@ -201,6 +203,53 @@ else:
         "precision to nothing."
     )
     st.altair_chart(ranking_metrics_chart(results), use_container_width=True)
+
+    # -- hit rate, NDCG and personalisation --------------------------------
+    st.markdown(f"#### Did it help anyone, and how much of the catalogue moved?")
+    st.caption(
+        f"**Hit rate** is the share of users with at least one relevant restaurant "
+        f"in their top {DEFAULT_K} — the user-centric question Precision@{DEFAULT_K} "
+        f"cannot answer, and far easier to read than an F1 of 0.03. "
+        f"**NDCG@{DEFAULT_K}** asks where in the list the hit landed, since "
+        f"precision treats position 1 and position 10 alike. "
+        f"**Personalisation** is one minus the average overlap between two users' "
+        f"lists: a model giving everybody the same ten restaurants scores 0. "
+        f"That is the measure coverage is often mistaken for — coverage counts how "
+        f"much of the catalogue circulates in total, which a model could achieve "
+        f"while still handing any two people identical lists."
+    )
+
+    extra = results[["model", "hit_rate_at_k", "ndcg_at_k", "coverage", "personalisation"]].copy()
+    extra.columns = ["Model", f"Hit rate@{DEFAULT_K}", f"NDCG@{DEFAULT_K}",
+                     "Coverage", "Personalisation"]
+    st.dataframe(
+        extra.style.format({
+            f"Hit rate@{DEFAULT_K}": "{:.1%}", f"NDCG@{DEFAULT_K}": "{:.4f}",
+            "Coverage": "{:.1%}", "Personalisation": "{:.3f}",
+        }),
+        hide_index=True, width="stretch",
+    )
+
+    # -- who could actually be personalised for ----------------------------
+    fallback = results[results["n_fallback_users"] > 0]
+    if not fallback.empty:
+        lines = []
+        for _, row in fallback.iterrows():
+            total = int(row["n_personalised_users"] + row["n_fallback_users"])
+            share = row["n_personalised_users"] / total
+            lines.append(
+                f"**{row['model']}** personalised for {int(row['n_personalised_users']):,} "
+                f"of {total:,} users ({share:.1%}); the remaining "
+                f"{int(row['n_fallback_users']):,} had no training rating at 4★ or above "
+                f"and received the popularity ordering instead."
+            )
+        st.info(
+            "  \n".join(lines)
+            + "  \n\nFor those users the model's row above is measuring the baseline, "
+              "not content filtering — which is why the split is reported rather "
+              "than left implicit.",
+            icon=":material/group:",
+        )
 
     # -- the finding -------------------------------------------------------
     st.markdown("#### Accuracy against coverage")
@@ -239,15 +288,19 @@ sparse, popularity-skewed data.
     # -- the underlying table ----------------------------------------------
     with st.expander("The numbers behind the charts"):
         table = results[["model", "rmse", "mse", "precision_at_k", "recall_at_k",
-                         "f1_at_k", "coverage", "n_predictions", "n_users_evaluated"]].copy()
+                         "f1_at_k", "hit_rate_at_k", "ndcg_at_k", "coverage",
+                         "personalisation", "n_predictions", "n_users_evaluated"]].copy()
         table.columns = ["Model", "RMSE", "MSE", f"Precision@{DEFAULT_K}",
-                         f"Recall@{DEFAULT_K}", f"F1@{DEFAULT_K}", "Coverage",
-                         "Predictions", "Users"]
+                         f"Recall@{DEFAULT_K}", f"F1@{DEFAULT_K}",
+                         f"Hit rate@{DEFAULT_K}", f"NDCG@{DEFAULT_K}", "Coverage",
+                         "Personalisation", "Predictions", "Users"]
         st.dataframe(
             table.style.format({
                 "RMSE": "{:.3f}", "MSE": "{:.3f}",
-                f"Precision@{DEFAULT_K}": "{:.3f}", f"Recall@{DEFAULT_K}": "{:.3f}",
-                f"F1@{DEFAULT_K}": "{:.3f}", "Coverage": "{:.1%}",
+                f"Precision@{DEFAULT_K}": "{:.4f}", f"Recall@{DEFAULT_K}": "{:.4f}",
+                f"F1@{DEFAULT_K}": "{:.4f}", f"Hit rate@{DEFAULT_K}": "{:.1%}",
+                f"NDCG@{DEFAULT_K}": "{:.4f}", "Coverage": "{:.1%}",
+                "Personalisation": "{:.3f}",
                 "Predictions": "{:,.0f}", "Users": "{:,.0f}",
             }),
             hide_index=True, width="stretch",
