@@ -33,7 +33,7 @@ COMPARISON_HEIGHT = 340
 data, models, _ = boot()
 ratings = my_ratings()
 
-eyebrow(st, "Step 2 of 3")
+eyebrow(st, "Step 2 of 2")
 st.markdown("# Recommended for you")
 
 # ---------------------------------------------------------------------------
@@ -60,7 +60,7 @@ if not ratings:
     )
 
     if st.button("Rate some restaurants →", type="primary"):
-        st.switch_page("pages/2_Rate.py")
+        st.switch_page("pages/1_Browse.py")
 
     divider(st)
     render_card_grid(st, models["popularity"].recommend("", top_n=9, exclude_rated=False))
@@ -103,7 +103,7 @@ render_card_grid(
 action_left, action_right = st.columns([1, 3])
 with action_left:
     if st.button("Rate more →", type="secondary"):
-        st.switch_page("pages/2_Rate.py")
+        st.switch_page("pages/1_Browse.py")
 with action_right:
     st.caption("The match score is the blended model output — higher means a closer fit to your ratings. The line under each name says what it has in common with something you rated highly.")
 
@@ -179,7 +179,8 @@ divider(st)
 
 step_left, step_right = st.columns([1, 3])
 with step_left:
-    if st.button("Step 3 — tell us how we did →", type="primary"):
+    if st.button("Tell us how we did →", type="primary"):
         st.switch_page("pages/4_Evaluation.py")
 with step_right:
-    st.caption("The questionnaire is the qualitative half of the evaluation the assignment requires.")
+    st.caption("Optional, and not part of the two steps above — the questionnaire is the "
+               "qualitative half of the evaluation, and it needs real answers to mean anything.")

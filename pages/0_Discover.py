@@ -52,14 +52,22 @@ st.write("")
 # steps are stated before any control appears, and the one the visitor is
 # currently on is marked, so progress is visible rather than implied.
 # ---------------------------------------------------------------------------
+# Two steps, not three.
+#
+# The questionnaire used to be advertised here as a third step. It is not one:
+# it lives on the evaluation screen, which is written for whoever is marking
+# this project rather than for someone deciding where to eat, and the sidebar
+# files that screen under "Behind the system". Promising a step and then
+# placing it outside the journey is worse than not promising it — the
+# recommendations screen invites the visitor to the questionnaire once there
+# is something for them to give feedback on.
 steps = [
     ("Step 1", "Rate a few restaurants", "Tell us about places you've been."),
     ("Step 2", "See your recommendations", "Built from what you rated."),
-    ("Step 3", "Tell us how we did", "A short questionnaire on the results."),
 ]
 current_step = 1 if rated_count == 0 else 2
 
-for column, (index, (number, title, description)) in zip(st.columns(3), enumerate(steps, start=1)):
+for column, (index, (number, title, description)) in zip(st.columns(len(steps)), enumerate(steps, start=1)):
     with column:
         eyebrow(st, f"{number}{'  ·  you are here' if index == current_step else ''}")
         st.markdown(f"**{title}**")
@@ -68,8 +76,10 @@ for column, (index, (number, title, description)) in zip(st.columns(3), enumerat
 st.write("")
 
 if rated_count == 0:
+    # Browse, not the by-name form. Someone who has rated nothing yet has no
+    # name to type; they need to see the catalogue and recognise something.
     if st.button("Start rating →", type="primary"):
-        st.switch_page("pages/2_Rate.py")
+        st.switch_page("pages/1_Browse.py")
 else:
     left, right = st.columns([1, 3])
     with left:

@@ -9,6 +9,19 @@ Every personalised recommendation in this project traces back to what is
 collected here. Without it there is no user to recommend for, and the app can
 only ever show the popularity baseline.
 
+HOW THIS DIFFERS FROM BROWSE, NOW THAT BROWSE CAN ALSO RATE
+-----------------------------------------------------------
+Once cards on the catalogue screen became rateable in place, these two pages
+briefly did the same job through two different interfaces, which is worse than
+either alone: a visitor cannot predict which one to open.
+
+They now split by what the visitor already knows. Browse is for finding
+something -- filter by cuisine, price and rating, recognise a place, rate it
+there. This screen is for a visitor who already has a name in mind and does
+not want to filter their way to it, and it is where the ratings collected from
+anywhere in the app are reviewed, annotated and removed. Searching is
+incidental here; the list below is the point.
+
 The ratings are held in st.session_state and are never written back to the
 CSV files. That is a deliberate boundary: the dataset the models were fitted
 on stays untouched, and personalisation happens through the models'
@@ -25,13 +38,19 @@ from ui.state import (RATINGS_FOR_GOOD_RESULTS, boot, clear_ratings, my_notes,
 data, models, _ = boot()
 ratings = my_ratings()
 
-eyebrow(st, "Step 1 of 3")
-st.markdown("# Rate a few restaurants")
+eyebrow(st, "Step 1 of 2")
+st.markdown("# Your ratings")
 lede(
     st,
-    "Pick places you've actually been. Three or four is enough to see the "
-    "recommendations change — the more you rate, the sharper they get.",
+    "Add a place by name, and review everything you have rated so far. "
+    "Three or four ratings is enough to see the recommendations change.",
 )
+
+if not ratings:
+    st.caption(
+        "Know the name already? Add it below. Otherwise **Browse restaurants** "
+        "lets you filter by cuisine and price and rate the cards as you go."
+    )
 
 # ---------------------------------------------------------------------------
 # Progress.

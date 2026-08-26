@@ -1,7 +1,7 @@
 """
 pages/4_Evaluation.py
 
-Step 3, and the answer to "does any of this actually work?"
+The answer to "does any of this actually work?"
 
 Three kinds of evaluation live on this screen, which is the set the assignment
 asks for:
@@ -54,13 +54,25 @@ lede(
 divider(st)
 
 # ---------------------------------------------------------------------------
-# Step 3 — the questionnaire
+# The questionnaire
 #
 # Offered only once there are recommendations worth judging, so an answer always
 # refers to picks the respondent actually looked at. Answers about an empty
 # screen would be noise dressed up as data.
 # ---------------------------------------------------------------------------
-eyebrow(st, "Step 3 of 3")
+# No step number.
+#
+# This screen is written for whoever is assessing the project rather than for
+# a diner: it holds the metrics, the charts and the central finding. Numbering
+# it "Step 3 of 3" put backstage material inside the visitor's journey, and
+# the navigation then had to file it under "Behind the system" — so the app
+# advertised a third step and then hid it in a section labelled as not being
+# part of the product.
+#
+# The questionnaire stays here, because a response is only meaningful once
+# there are recommendations to respond to, but it is now an invitation rather
+# than a numbered obligation.
+eyebrow(st, "Your feedback")
 st.markdown("### Tell us how we did")
 
 if not ratings:
@@ -70,7 +82,7 @@ if not ratings:
         icon=":material/info:",
     )
     if st.button("Go and rate some →", type="primary"):
-        st.switch_page("pages/2_Rate.py")
+        st.switch_page("pages/1_Browse.py")
 
 elif st.session_state.get(SURVEY_KEY):
     st.success("Thanks — your response was saved. It appears in the results below.")

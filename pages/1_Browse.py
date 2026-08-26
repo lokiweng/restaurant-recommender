@@ -52,6 +52,8 @@ eyebrow(st, "The whole catalogue")
 st.markdown("# Browse restaurants")
 lede(st, f"All {data.n_businesses:,} restaurants in the dataset. Rate any of them here — "
          "the recommendations update from whatever you rate.")
+st.caption("Already know the name of a place? **Your ratings** has a search box, "
+           "and lists everything you have rated.")
 
 # ---------------------------------------------------------------------------
 # Progress.
