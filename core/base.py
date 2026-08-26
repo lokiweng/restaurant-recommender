@@ -135,13 +135,44 @@ class Recommender(ABC):
 
         Rating and review count, which is the same thing every "Top Rated"
         list does. Deliberately not disguised as a recommendation.
+
+        Both quantities are derived from the ratings the model was fitted on,
+        not from the precomputed avg_rating and review_count columns in
+        businesses.csv. Those columns are computed from every review in the
+        dataset, so under a train/test split they carry the held-out ratings
+        the model is about to be measured against — the same leak closed in
+        popularity.py, reappearing here because this fallback is what the
+        content-based model returns for a user it cannot personalise for, and
+        those users are counted in its reported scores.
         """
         self._require_fitted()
-        ordered = self._businesses.sort_values(["avg_rating", "review_count"], ascending=False)
+
+        ids = pd.Index(self._businesses["business_id"])
+
+        if self._ratings is not None and not self._ratings.empty:
+            observed = self._ratings.groupby("business_id")["rating"].agg(["mean", "count"])
+            averages = observed["mean"].reindex(ids)
+            counts = observed["count"].reindex(ids).fillna(0.0)
+            # A restaurant with no ratings in this split has no average of its
+            # own; the mean of the observed averages is the neutral stand-in,
+            # and its zero review count keeps it low in the ordering anyway.
+            averages = averages.fillna(averages.mean())
+        else:
+            # Unfitted or empty ratings: fall back to the catalogue columns.
+            averages = self._businesses["avg_rating"].to_numpy()
+            counts = self._businesses["review_count"].to_numpy()
+
+        stats = pd.DataFrame(
+            {"avg_rating": np.asarray(averages, dtype=float),
+             "review_count": np.asarray(counts, dtype=float)},
+            index=ids,
+        )
+        ordered = stats.sort_values(["avg_rating", "review_count"], ascending=False)
+
         # Descending integers, so the resulting Series sorts the same way.
         return pd.Series(
             np.arange(len(ordered), 0, -1, dtype=float),
-            index=ordered["business_id"].to_numpy(),
+            index=ordered.index.to_numpy(),
         )
 
     def _rated_by(self, user_id: str) -> set:

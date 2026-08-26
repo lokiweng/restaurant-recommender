@@ -61,9 +61,14 @@ class EvaluationResult:
     precision_at_k: float | None
     recall_at_k: float | None
     f1_at_k: float | None
+    hit_rate_at_k: float | None
+    ndcg_at_k: float | None
     n_users_evaluated: int
     k: int
     coverage: float | None
+    personalisation: float | None
+    n_personalised_users: int | None
+    n_fallback_users: int | None
 
     def as_row(self) -> dict:
         """Flatten for display in a table."""
@@ -150,13 +155,106 @@ def evaluate_rating_prediction(model: Recommender, test: pd.DataFrame) -> tuple[
     return rmse(actual, predicted), mse(actual, predicted), len(predicted)
 
 
+def ndcg_at_k(ranked_ids: list, relevant: set, k: int) -> float:
+    """Normalised discounted cumulative gain over a binary-relevance ranking.
+
+    Precision@K treats a hit in position one and a hit in position ten as
+    equally good. They are not: a user reads a recommendation list from the
+    top, so where a hit lands matters. NDCG applies a logarithmic discount by
+    rank and then divides by the best score the list could possibly have
+    achieved given how many relevant items exist, which keeps it comparable
+    across users who have different numbers of relevant items held out.
+
+    Binary relevance is used because the "relevant" decision is already a
+    threshold on the held-out rating, so there are no graded gains to weight.
+    """
+    gains = [1.0 / np.log2(rank + 1)
+             for rank, item in enumerate(ranked_ids[:k], start=1)
+             if item in relevant]
+    dcg = float(sum(gains))
+
+    # The ideal list puts every relevant item it can at the top.
+    ideal_hits = min(k, len(relevant))
+    idcg = float(sum(1.0 / np.log2(rank + 1) for rank in range(1, ideal_hits + 1)))
+
+    return dcg / idcg if idcg > 0 else 0.0
+
+
+def personalisation_index(lists: list[set], seed: int = DEFAULT_SEED,
+                          max_pairs: int = 5000) -> float | None:
+    """How different users' recommendation lists are from one another.
+
+    One minus the mean Jaccard overlap between pairs of users' top-K lists. A
+    model handing everybody the same ten restaurants scores 0; a model whose
+    users share nothing scores 1.
+
+    This exists because catalogue coverage cannot do the job it is often asked
+    to do. Coverage counts how much of the catalogue is in circulation across
+    all users, so a model could rotate through the catalogue while still giving
+    any two individuals identical lists. Overlap between lists measures
+    personalisation directly, and is the metric that actually distinguishes a
+    personalised model from a non-personalised one.
+
+    Pairs are sampled rather than enumerated: 1,700 users is 1.4 million pairs
+    per model, and a seeded sample of 5,000 gives a stable estimate for a small
+    fraction of the work.
+    """
+    if len(lists) < 2:
+        return None
+
+    rng = np.random.default_rng(seed)
+    n = len(lists)
+    total_pairs = n * (n - 1) // 2
+
+    if total_pairs <= max_pairs:
+        pairs = [(i, j) for i in range(n) for j in range(i + 1, n)]
+    else:
+        left = rng.integers(0, n, size=max_pairs * 2)
+        right = rng.integers(0, n, size=max_pairs * 2)
+        pairs = [(int(a), int(b)) for a, b in zip(left, right) if a != b][:max_pairs]
+
+    overlaps = []
+    for i, j in pairs:
+        a, b = lists[i], lists[j]
+        union = len(a | b)
+        overlaps.append(len(a & b) / union if union else 0.0)
+
+    return float(1.0 - np.mean(overlaps)) if overlaps else None
+
+
+def count_personalised_users(model: Recommender, train: pd.DataFrame,
+                             threshold: float = RELEVANCE_THRESHOLD) -> tuple[int, int]:
+    """How many users the model can personalise for, and how many it cannot.
+
+    The content-based model builds a user's taste vector from restaurants they
+    rated at or above the liked threshold. A user with no such rating in the
+    training split has nothing to build from, so the model returns the
+    popularity ordering instead — meaning that for those users the
+    content-based row of the results table is measuring the baseline, not
+    content filtering. Reporting the split is what makes that readable.
+
+    Models without a liked-threshold fallback report every training user as
+    personalised, which is accurate: collaborative filtering needs ratings, not
+    *high* ratings, and the popularity baseline personalises for nobody by
+    design.
+    """
+    all_users = train["user_id"].nunique()
+
+    if not hasattr(model, "liked_threshold"):
+        return all_users, 0
+
+    liked = train[train["rating"] >= model.liked_threshold]
+    personalised = liked["user_id"].nunique()
+    return personalised, all_users - personalised
+
+
 def evaluate_ranking(
     model: Recommender,
     train: pd.DataFrame,
     test: pd.DataFrame,
     k: int = DEFAULT_K,
     threshold: float = RELEVANCE_THRESHOLD,
-) -> tuple[float | None, float | None, float | None, int, float | None]:
+) -> dict:
     """Precision@K, Recall@K, F1@K and catalogue coverage.
 
     An item is "relevant" if the user's held-out rating for it was at least
@@ -175,13 +273,21 @@ def evaluate_ranking(
     Coverage is reported alongside them: the share of the catalogue that
     appears in anyone's top-K at all. A model with excellent precision that
     only ever recommends the same twenty restaurants is not doing its job, and
-    coverage is the metric that exposes it.
+    coverage is the metric that exposes it — though only in that direction.
+    High coverage does not evidence personalisation, because a model could
+    spread recommendations widely while still giving any two users the same
+    list; `personalisation` measures that directly.
+
+    Hit rate and NDCG are computed from the same pass. Hit rate asks the
+    user-centric question Precision@K does not — was this user helped at all?
+    — and NDCG asks where in the list the help landed.
     """
     users_in_train = set(train["user_id"])
     relevant_test = test[test["rating"] >= threshold]
 
-    precisions, recalls = [], []
+    precisions, recalls, hits_flags, ndcgs = [], [], [], []
     recommended_items: set = set()
+    per_user_lists: list[set] = []
 
     for user_id, group in relevant_test.groupby("user_id"):
         if user_id not in users_in_train:
@@ -192,15 +298,23 @@ def evaluate_ranking(
         if results.empty:
             continue
 
-        recommended = set(results["business_id"])
+        # Order matters for NDCG, so the ranked list is kept as a list; the set
+        # is only used for the order-insensitive counts.
+        ranked = results["business_id"].tolist()
+        recommended = set(ranked)
         recommended_items |= recommended
+        per_user_lists.append(recommended)
 
         hits = len(recommended & relevant)
         precisions.append(hits / k)
         recalls.append(hits / len(relevant))
+        hits_flags.append(1.0 if hits > 0 else 0.0)
+        ndcgs.append(ndcg_at_k(ranked, relevant, k))
 
     if not precisions:
-        return None, None, None, 0, None
+        return {"precision_at_k": None, "recall_at_k": None, "f1_at_k": None,
+                "hit_rate_at_k": None, "ndcg_at_k": None, "n_users_evaluated": 0,
+                "coverage": None, "personalisation": None}
 
     precision = float(np.mean(precisions))
     recall = float(np.mean(recalls))
@@ -209,7 +323,16 @@ def evaluate_ranking(
     catalogue_size = len(model._businesses) if model._businesses is not None else 0
     coverage = (len(recommended_items) / catalogue_size) if catalogue_size else None
 
-    return precision, recall, f1, len(precisions), coverage
+    return {
+        "precision_at_k": precision,
+        "recall_at_k": recall,
+        "f1_at_k": f1,
+        "hit_rate_at_k": float(np.mean(hits_flags)),
+        "ndcg_at_k": float(np.mean(ndcgs)),
+        "n_users_evaluated": len(precisions),
+        "coverage": coverage,
+        "personalisation": personalisation_index(per_user_lists),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -233,19 +356,25 @@ def evaluate_model(
     model.fit(data, ratings=train)
 
     error_rmse, error_mse, n_predictions = evaluate_rating_prediction(model, test)
-    precision, recall, f1, n_users, coverage = evaluate_ranking(model, train, test, k)
+    ranking = evaluate_ranking(model, train, test, k)
+    n_personalised, n_fallback = count_personalised_users(model, train)
 
     return EvaluationResult(
         model=model.name,
         rmse=error_rmse,
         mse=error_mse,
         n_predictions=n_predictions,
-        precision_at_k=precision,
-        recall_at_k=recall,
-        f1_at_k=f1,
-        n_users_evaluated=n_users,
+        precision_at_k=ranking["precision_at_k"],
+        recall_at_k=ranking["recall_at_k"],
+        f1_at_k=ranking["f1_at_k"],
+        hit_rate_at_k=ranking["hit_rate_at_k"],
+        ndcg_at_k=ranking["ndcg_at_k"],
+        n_users_evaluated=ranking["n_users_evaluated"],
         k=k,
-        coverage=coverage,
+        coverage=ranking["coverage"],
+        personalisation=ranking["personalisation"],
+        n_personalised_users=n_personalised,
+        n_fallback_users=n_fallback,
     )
 
 

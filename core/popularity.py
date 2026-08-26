@@ -68,11 +68,42 @@ class PopularityRecommender(Recommender):
         self._businesses = data.businesses.reset_index(drop=True)
         self._ratings = data.reviews if ratings is None else ratings
 
-        counts = self._businesses["review_count"].astype(float)
-        averages = self._businesses["avg_rating"].astype(float)
+        # R and v are derived from the ratings this model was actually given,
+        # NOT from the precomputed avg_rating and review_count columns in
+        # businesses.csv.
+        #
+        # This is a test-set leak, and it is worth naming precisely because the
+        # leaking version looks completely reasonable. Those two columns are
+        # computed from every review in the dataset. Under a train/test split
+        # the model is handed only the training ratings, but reading the
+        # columns would let it score restaurants using statistics that already
+        # reflect the held-out ratings it is about to be graded on.
+        #
+        # That mattered more here than it usually would, because the headline
+        # finding of this project is that this non-personalised baseline beats
+        # all three personalised models. The baseline was the model reading
+        # those columns, so the finding has to be re-established with the leak
+        # closed before it can be trusted.
+        #
+        # When fitted on the full dataset — which is what the running
+        # application does — this computes the same numbers as before, so the
+        # interface and the app's behaviour are unchanged.
+        ids = pd.Index(self._businesses["business_id"])
+        observed = self._ratings.groupby("business_id")["rating"].agg(["mean", "count"])
 
+        counts = observed["count"].reindex(ids).fillna(0.0).astype(float)
+        averages = observed["mean"].reindex(ids).astype(float)
+
+        # C: the mean of the per-restaurant averages over restaurants with at
+        # least one observed rating. A restaurant with none contributes no
+        # evidence and must not drag the prior around.
         self.prior_mean_ = float(averages.mean())
-        self.min_reviews_ = float(counts.quantile(self.quantile))
+        averages = averages.fillna(self.prior_mean_)
+
+        counts = counts.to_numpy()
+        averages = averages.to_numpy()
+
+        self.min_reviews_ = float(pd.Series(counts).quantile(self.quantile))
 
         denominator = counts + self.min_reviews_
         # Guard the degenerate case where a restaurant has no reviews and m is
