@@ -36,7 +36,7 @@ from core.collaborative import CollaborativeRecommender
 from core.content_based import ContentBasedRecommender
 from core.data import load_dataset
 from core.evaluation import DEFAULT_K, evaluate_all
-from core.hybrid import HybridRecommender
+from core.hybrid import DEFAULT_ALPHA, HybridRecommender
 from core.popularity import PopularityRecommender
 
 # The same two colours the app uses, for the same reason: the only distinction
@@ -85,7 +85,7 @@ def main() -> None:
     print("Running the evaluation (about a minute)…")
     results = evaluate_all(
         [PopularityRecommender(), ContentBasedRecommender(),
-         CollaborativeRecommender(), HybridRecommender(alpha=0.5)],
+         CollaborativeRecommender(), HybridRecommender(alpha=DEFAULT_ALPHA)],
         data, k=DEFAULT_K,
     )
     results["colour"] = results["model"].apply(
