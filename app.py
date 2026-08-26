@@ -74,7 +74,7 @@ pages = {
         ),
         st.Page(
             "pages/2_Rate.py",
-            title="Rate a few places",
+            title="Your ratings",
             icon=":material/star:",
         ),
         st.Page(
