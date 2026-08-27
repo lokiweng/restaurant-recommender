@@ -202,7 +202,7 @@ else:
         "RMSE is in stars, so 1.10 means the average prediction is off by about "
         "one star. Lower is better."
     )
-    st.altair_chart(rmse_chart(results), use_container_width=True)
+    st.altair_chart(rmse_chart(results), width="stretch")
 
     # -- ranking quality ---------------------------------------------------
     st.markdown(f"#### Ranking quality (top {DEFAULT_K})")
@@ -214,7 +214,7 @@ else:
         "several times larger than precision, and a shared axis would flatten "
         "precision to nothing."
     )
-    st.altair_chart(ranking_metrics_chart(results), use_container_width=True)
+    st.altair_chart(ranking_metrics_chart(results), width="stretch")
 
     # -- hit rate, NDCG and personalisation --------------------------------
     st.markdown(f"#### Did it help anyone, and how much of the catalogue moved?")
@@ -271,7 +271,7 @@ else:
         "bar charts: read separately, the numbers hide the relationship between "
         "them."
     )
-    st.altair_chart(tradeoff_chart(results), use_container_width=True)
+    st.altair_chart(tradeoff_chart(results), width="stretch")
 
     popularity = results[results["model"] == "Popularity baseline"].iloc[0]
     personalised = results[results["model"] != "Popularity baseline"]
@@ -354,7 +354,7 @@ else:
         ],
     )
 
-    st.altair_chart(satisfaction_chart(as_frame(summary)), use_container_width=True)
+    st.altair_chart(satisfaction_chart(as_frame(summary)), width="stretch")
 
     footnote = (
         f"Respondents had rated a median of {summary['median_ratings_given']:.0f} "
