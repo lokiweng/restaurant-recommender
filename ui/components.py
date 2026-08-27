@@ -235,7 +235,7 @@ def _rating_control(st, row: pd.Series, ratings: dict, on_rate, on_remove,
     if current and stars_key not in st.session_state:
         st.session_state[stars_key] = current - 1
 
-    with st.popover(label, use_container_width=True):
+    with st.popover(label, width="stretch"):
         st.caption(str(row.get("name", "")))
 
         # st.feedback rather than five st.buttons in five st.columns.
@@ -257,7 +257,7 @@ def _rating_control(st, row: pd.Series, ratings: dict, on_rate, on_remove,
 
         if current and on_remove is not None:
             if st.button("Remove this rating", key=f"{key_prefix}_del_{business_id}",
-                         use_container_width=True):
+                         width="stretch"):
                 on_remove(business_id)
                 # Drop the widget's own state too. Without this the stars stay
                 # lit after the rating is gone, and the next rerun would read
