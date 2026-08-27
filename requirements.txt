@@ -1,8 +1,7 @@
-# Upper bound is deliberate. The pages call st.altair_chart(..., use_container_width=True),
-# which Streamlit has deprecated with a stated removal date that has already passed. It
-# still works in 1.62, but a future release will drop it. Capping here means
-# `pip install -r requirements.txt` installs the version this project was tested against,
-# so the app cannot break between now and the demo.
+# Upper bound is deliberate: it pins the Streamlit version this project was
+# tested against, so `pip install -r requirements.txt` reproduces the
+# environment the reported results were produced in and the app cannot change
+# behaviour between now and the demonstration.
 streamlit>=1.30,<1.63
 pandas>=2.0
 numpy>=1.24
