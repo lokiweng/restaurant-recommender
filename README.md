@@ -38,14 +38,19 @@ python -m pytest tests/               # runs the test suite
 
 ## What it does
 
-The interface is built around one three-step journey, because the most common
+The interface is built around one two-step journey, because the most common
 complaint about a recommender demo is not knowing what to do first:
 
 | Step | Screen | What happens |
 |---|---|---|
-| 1 | **Rate** | You rate restaurants you already know. |
-| 2 | **Your picks** | Recommendations built from those ratings, plus a side-by-side comparison of all four models. |
-| 3 | **Evaluation** | A three-item questionnaire, and the measured results. |
+| 1 | **Browse restaurants** / **Your ratings** | You rate restaurants you already know — in place on the catalogue cards, or by name. |
+| 2 | **Recommended for you** | Recommendations built from those ratings, plus a side-by-side comparison of all four models. |
+
+Two further screens sit outside that journey, under *Behind the system* in the
+sidebar. **How well does it work?** carries the measured results and the
+satisfaction questionnaire; **How it works** explains the four models. They are
+addressed to whoever is assessing the project rather than to someone deciding
+where to eat, which is why neither is numbered as a third step.
 
 Before you rate anything the app shows the popularity baseline and says so.
 That is the **cold-start problem**, shown honestly rather than disguised as
@@ -93,8 +98,9 @@ ui/                     presentation only
   charts.py             Altair chart specs
   state.py              cached data + fitted models, session ratings
 data/                   the dataset (see note below)
-scripts/                run_evaluation.py · make_flowchart.py · make_results_chart.py
-tests/                  test_core.py · test_satisfaction.py
+scripts/                run_evaluation.py · popularity_stratification.py
+                        make_flowchart.py · make_results_chart.py
+tests/                  test_core.py · test_satisfaction.py · test_theme.py
 ```
 
 ---
@@ -109,7 +115,10 @@ one or two ratings, which is too little to personalise from or to evaluate
 against.
 
 > **These three files cannot be regenerated from what is in this folder.** The
-> multi-gigabyte raw Yelp JSON is not included. Treat them as source data.
+> multi-gigabyte raw Yelp JSON is not included, so `preprocess_yelp.py` is
+> shipped for inspection rather than for re-running: it documents exactly how
+> the city filter, the `Restaurants` category test and the 5-core pass were
+> applied. Treat the three CSVs as source data.
 
 Ratings you give while using the app live in the browser session only and are
 never written back. `data/satisfaction.csv` is the one file the app writes, and
@@ -125,7 +134,9 @@ Three kinds, because they answer different questions:
 |---|---|
 | How close is a predicted star rating to the real one? | RMSE, MSE |
 | Are the right restaurants in the top ten? | Precision@10, Recall@10, F1@10 |
+| Did any user get at least one good pick, and how high up? | Hit Rate@10, NDCG@10 |
 | How much of the catalogue ever gets recommended? | Coverage |
+| Do two users actually get different lists? | Personalisation index |
 | Did people actually like the results? | Satisfaction questionnaire |
 
 The first three use a **per-user 80/20 split**: each user's ratings are cut
