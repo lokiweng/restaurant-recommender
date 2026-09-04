@@ -126,7 +126,7 @@ arrow(1.65, row(6) - HALF, 3.4, row(7) + HALF, "arc3,rad=-0.14")
 
 # ---- the application -----------------------------------------------------
 box(5, row(7), 8.8, BOX_H,
-    "Streamlit app  —  app.py · pages/ · ui/\nDiscover · Browse · Rate · Your picks · Evaluation · How it works",
+    "Streamlit app  —  app.py · pages/ · ui/\nDiscover · Browse restaurants · Your ratings\nRecommended for you · How well does it work? · How it works",
     PIPELINE_FILL, fontsize=8.8)
 
 # ---- both halves of the evaluation --------------------------------------
@@ -134,7 +134,7 @@ arrow(3.6, row(7) - HALF, 2.6, row(8) + TALL_HALF, "arc3,rad=-0.16")
 arrow(6.4, row(7) - HALF, 7.4, row(8) + TALL_HALF, "arc3,rad=0.16")
 
 box(2.6, row(8), 4.0, TALL_H,
-    "core/evaluation.py\nQuantitative\n80/20 per-user split\nRMSE · MSE · Precision@K\nRecall@K · F1@K · coverage",
+    "core/evaluation.py\nQuantitative\n80/20 per-user split\nRMSE · MSE · Precision@K · Recall@K · F1@K\nHit Rate@K · NDCG@K\ncoverage · personalisation",
     EVAL_FILL, fontsize=8.1)
 box(7.4, row(8), 4.0, TALL_H,
     "core/satisfaction.py\nQualitative\n3-item questionnaire\nrelevance · discovery · intent\n→ data/satisfaction.csv",
@@ -144,7 +144,7 @@ arrow(2.6, row(8) - TALL_HALF, 4.2, row(9) + HALF, "arc3,rad=0.14")
 arrow(7.4, row(8) - TALL_HALF, 5.8, row(9) + HALF, "arc3,rad=-0.14")
 
 box(5, row(9), 6.8, BOX_H,
-    "Reported results\nscripts/run_evaluation.py  ·  scripts/make_results_chart.py",
+    "Reported results\nscripts/run_evaluation.py · scripts/popularity_stratification.py\nscripts/make_results_chart.py",
     PIPELINE_FILL, fontsize=8.8)
 
 ax.text(5, row(9) - HALF - 0.55,
